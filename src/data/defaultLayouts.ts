@@ -6,14 +6,14 @@ export const DEFAULT_LAYOUTS: WindowLayout[] = defaultLayouts;
 export const DEFAULT_LAYOUT_SETTINGS: LayoutSettings = {
   selectedLayoutId: "two-columns",
   layouts: DEFAULT_LAYOUTS,
-  applyGap: true,
-  gap: 8,
-  applyMargins: true,
+  applyGap: false,
+  gap: 0,
+  applyMargins: false,
   margins: {
-    top: 8,
-    right: 8,
-    bottom: 8,
-    left: 8,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
   },
 };
 

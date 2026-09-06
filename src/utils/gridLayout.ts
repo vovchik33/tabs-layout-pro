@@ -264,12 +264,18 @@ export function normalizeLayoutSettings(value: unknown): LayoutSettings {
     GRID_LIMITS.gap.max
   );
   const applyGap =
-    typeof value.applyGap === "boolean" ? value.applyGap : defaults.applyGap;
+    typeof value.applyGap === "boolean"
+      ? value.applyGap
+      : legacyCustomLayout !== undefined
+        ? true
+        : defaults.applyGap;
   const gap = applyGap ? normalizedGap : 0;
   const applyMargins =
     typeof value.applyMargins === "boolean"
       ? value.applyMargins
-      : defaults.applyMargins;
+      : legacyCustomLayout !== undefined
+        ? true
+        : defaults.applyMargins;
   const margins = applyMargins
     ? normalizeMargins(
         value.margins ?? legacyCustomLayout?.margins,
