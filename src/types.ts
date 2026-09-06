@@ -5,24 +5,28 @@ export interface LayoutMargins {
   left: number;
 }
 
-export interface GridLayout {
-  id: string;
-  name: string;
-  description: string;
-  rows: number;
-  columns: number;
+export interface NormalizedPosition {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
 }
 
-export interface CustomLayout {
-  rows: number;
-  columns: number;
-  gap: number;
-  margins: LayoutMargins;
+export interface LayoutWindow {
+  position: NormalizedPosition;
+}
+
+export interface WindowLayout {
+  id: string;
+  name: string;
+  windows: LayoutWindow[];
 }
 
 export interface LayoutSettings {
   selectedLayoutId: string;
-  customLayout: CustomLayout;
+  layouts: WindowLayout[];
+  gap: number;
+  margins: LayoutMargins;
 }
 
 export interface WindowBounds {

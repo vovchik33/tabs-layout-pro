@@ -8,7 +8,7 @@
 ## Architecture
 - `background.ts`: install/update lifecycle, command, and async arrangement messages.
 - `popup/`: toolbar and detached layout picker; `options/`: persisted settings.
-- `displayBounds.ts`: active display/candidate windows; `gridLayout.ts`: pure geometry.
+- `displayBounds.ts`: active display/candidate windows; `gridLayout.ts`: layout validation and pure geometry.
 - `arrangeWindows.ts`: the only window mutation layer.
 - Reuse `storage.ts` and `useStorageSync`; do not create another storage pattern.
 
@@ -17,7 +17,7 @@
 - Target only the monitor containing the last-focused normal browser window.
 - Exclude popup/devtools/non-normal windows.
 - Active window is first; remaining windows use deterministic spatial order.
-- Arrange at most `rows × columns`; leave overflow windows unchanged.
+- Arrange at most `layout.windows.length`; leave overflow windows unchanged.
 - Use display `workArea`, margins, and gaps; support negative monitor coordinates.
 - Normalize non-normal window states before applying bounds.
 - Put multi-step window work in the service worker because toolbar popups are ephemeral.

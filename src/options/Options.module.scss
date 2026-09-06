@@ -88,6 +88,21 @@
   }
 }
 
+.inlineActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fileInput {
+  display: none;
+}
+
+.layoutCount {
+  color: $color-slate-500;
+  font-size: 11px;
+}
+
 .actions {
   display: flex;
   align-items: center;
@@ -144,6 +159,7 @@
 }
 
 @media (max-width: 560px) {
+  .inlineActions,
   .actions {
     align-items: stretch;
     flex-direction: column;

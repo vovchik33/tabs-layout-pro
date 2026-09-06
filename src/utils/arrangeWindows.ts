@@ -1,28 +1,25 @@
-import { CUSTOM_LAYOUT_ID, getLayoutById } from "../data/defaultLayouts";
 import type { ArrangeWindowsResult, LayoutSettings } from "../types";
 import { displayWorkArea, getDisplayWindowContext } from "./displayBounds";
-import { calculateGridSlots, normalizeCustomLayout } from "./gridLayout";
+import { calculateLayoutSlots, normalizeLayoutSettings } from "./gridLayout";
 
 export async function arrangeWindows(
   settings: LayoutSettings,
   requestedLayoutId = settings.selectedLayoutId
 ): Promise<ArrangeWindowsResult> {
-  const customLayout = normalizeCustomLayout(settings.customLayout);
-  const preset = getLayoutById(requestedLayoutId);
-
-  if (requestedLayoutId !== CUSTOM_LAYOUT_ID && !preset) {
+  const normalizedSettings = normalizeLayoutSettings(settings);
+  const layout = normalizedSettings.layouts.find(
+    (candidate) => candidate.id === requestedLayoutId
+  );
+  if (!layout) {
     throw new Error(`Unknown layout: ${requestedLayoutId}`);
   }
 
-  const rows = preset?.rows ?? customLayout.rows;
-  const columns = preset?.columns ?? customLayout.columns;
   const context = await getDisplayWindowContext();
-  const slots = calculateGridSlots(
+  const slots = calculateLayoutSlots(
     displayWorkArea(context.display),
-    rows,
-    columns,
-    customLayout.gap,
-    customLayout.margins
+    layout,
+    normalizedSettings.gap,
+    normalizedSettings.margins
   );
   const windowsToArrange = context.windows.slice(0, slots.length);
   const activeWindowId = context.activeWindow.id;

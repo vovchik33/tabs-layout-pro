@@ -1,0 +1,114 @@
+[
+  {
+    "id": "two-columns",
+    "name": "Two Columns",
+    "windows": [
+      {
+        "position": {
+          "top": 0,
+          "left": 0,
+          "width": 0.5,
+          "height": 1
+        }
+      },
+      {
+        "position": {
+          "top": 0,
+          "left": 0.5,
+          "width": 0.5,
+          "height": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "two-rows",
+    "name": "Two Rows",
+    "windows": [
+      {
+        "position": {
+          "top": 0,
+          "left": 0,
+          "width": 1,
+          "height": 0.5
+        }
+      },
+      {
+        "position": {
+          "top": 0.5,
+          "left": 0,
+          "width": 1,
+          "height": 0.5
+        }
+      }
+    ]
+  },
+  {
+    "id": "three-columns",
+    "name": "Three Columns",
+    "windows": [
+      {
+        "position": {
+          "top": 0,
+          "left": 0,
+          "width": 0.3333333333333333,
+          "height": 1
+        }
+      },
+      {
+        "position": {
+          "top": 0,
+          "left": 0.3333333333333333,
+          "width": 0.3333333333333333,
+          "height": 1
+        }
+      },
+      {
+        "position": {
+          "top": 0,
+          "left": 0.6666666666666666,
+          "width": 0.3333333333333334,
+          "height": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "quadrants",
+    "name": "Quadrants",
+    "windows": [
+      {
+        "position": {
+          "top": 0,
+          "left": 0,
+          "width": 0.5,
+          "height": 0.5
+        }
+      },
+      {
+        "position": {
+          "top": 0,
+          "left": 0.5,
+          "width": 0.5,
+          "height": 0.5
+        }
+      },
+      {
+        "position": {
+          "top": 0.5,
+          "left": 0,
+          "width": 0.5,
+          "height": 0.5
+        }
+      },
+      {
+        "position": {
+          "top": 0.5,
+          "left": 0.5,
+          "width": 0.5,
+          "height": 0.5
+        }
+      }
+    ]
+  }
+]

@@ -5,7 +5,8 @@ Arrange existing Chrome windows into clean grid layouts on the monitor containin
 ## Features
 
 - Built-in Two Columns, Two Rows, Three Columns, and Quadrants layouts
-- Custom grid with 1–6 rows and columns
+- Capture current window positions as additional custom layouts
+- Import and export layouts as JSON
 - Configurable gap and per-edge screen margins
 - Uses each monitor's available work area, excluding docks and taskbars
 - Arranges existing normal windows only; never creates layout windows
@@ -45,10 +46,12 @@ This rebuilds `dist/` on changes; it does not provide HMR. If Chrome keeps stale
 
 1. Open two or more normal Chrome windows on one monitor.
 2. Open Tabs Layout Pro.
-3. Select a preset or Custom Grid.
+3. Select a layout.
 4. Click **Apply Layout**.
 
-The active window is assigned first, followed by the remaining windows in top-to-bottom, left-to-right order. The extension arranges at most `rows × columns` windows. Extra windows remain unchanged.
+The active window is assigned to the first configured slot. Remaining windows follow in deterministic top-to-bottom, left-to-right order and are assigned to subsequent slots. Extra windows remain unchanged.
+
+Use **Add Custom** in the popup to capture the current positions of normal Chrome windows on the active monitor. The new layout is synchronized, selected automatically, and named `Custom Layout N`. Overlapping positions are saved with a warning.
 
 Configure the shortcut at `chrome://extensions/shortcuts`. The default is `Ctrl+Shift+L` (`MacCtrl+Shift+L` on macOS).
 
@@ -58,12 +61,13 @@ Configure the shortcut at `chrome://extensions/shortcuts`. The default is `Ctrl+
 manifest.json
 ├── src/background.ts             Install/update events, command, message API
 ├── src/popup/                    Toolbar and detached layout picker
-├── src/options/                  Grid, gap, margin, and default settings
-├── src/data/defaultLayouts.ts    Built-in layouts and defaults
+├── src/options/                  Layout import/export, spacing, and defaults
+├── src/data/defaultLayouts.json  Built-in normalized window layouts
+├── src/data/defaultLayouts.ts    Layout settings defaults
 ├── src/utils/
 │   ├── arrangeWindows.ts         Window normalization and arrangement
 │   ├── displayBounds.ts          Active display/window detection
-│   ├── gridLayout.ts             Pure grid validation and slot geometry
+│   ├── gridLayout.ts             Layout validation and slot geometry
 │   └── storage.ts                Sync/local storage helpers
 ├── src/hooks/useStorageSync.ts   Cross-surface settings updates
 ├── src/styles/_tokens.scss       Shared design tokens
@@ -100,20 +104,30 @@ Multi-step window mutations run in `src/background.ts` because toolbar popup exe
 
 Intersection logic supports monitors positioned left or above the primary monitor, where coordinates are negative. Layouts use `display.workArea`, not full display bounds.
 
-### Grid calculation
+### Layout configuration
 
-The usable rectangle is:
+Layouts are JSON arrays. Every window position uses normalized coordinates from `0` to `1`:
 
-```text
-left   = workArea.left + margin.left
-top    = workArea.top + margin.top
-width  = workArea.width - left/right margins - horizontal gaps
-height = workArea.height - top/bottom margins - vertical gaps
+```json
+[
+  {
+    "id": "two-columns",
+    "name": "Two Columns",
+    "windows": [
+      {
+        "position": { "top": 0, "left": 0, "width": 0.5, "height": 1 }
+      },
+      {
+        "position": { "top": 0, "left": 0.5, "width": 0.5, "height": 1 }
+      }
+    ]
+  }
+]
 ```
 
-Integer remainders are distributed across the first rows/columns so slots cover the usable area without accumulating rounding gaps.
+Positions are relative to the display work area after screen margins. Configured gaps are split across shared slot edges. Layout IDs must be unique and rectangles must remain inside the normalized area. Overlapping windows are allowed and reported as a warning. Import and export are available from Settings; importing replaces the complete layout collection after Save Settings.
 
-Before applying bounds, maximized, minimized, or fullscreen windows are changed to `"normal"`. Chrome requires moved/resized windows to remain sufficiently visible; keep custom margins and grid sizes reasonable.
+Before applying bounds, maximized, minimized, or fullscreen windows are changed to `"normal"`. Chrome requires moved/resized windows to remain sufficiently visible; keep positions, margins, and gaps reasonable.
 
 ### Popup modes
 
@@ -127,16 +141,15 @@ Before applying bounds, maximized, minimized, or fullscreen windows are changed 
 Synced:
 
 - `layoutSettings.selectedLayoutId`
-- `layoutSettings.customLayout.rows`
-- `layoutSettings.customLayout.columns`
-- `layoutSettings.customLayout.gap`
-- `layoutSettings.customLayout.margins`
+- `layoutSettings.layouts`
+- `layoutSettings.gap`
+- `layoutSettings.margins`
 
 Local:
 
 - `updateNotice` — previous/current version shown after an installed update
 
-The service worker seeds `layoutSettings` on first install. On update, it shows a `NEW` action badge; dismissing the popup banner clears the badge and local notice.
+The service worker seeds `layoutSettings` on first install and migrates legacy Custom Grid settings on update. On update, it shows a `NEW` action badge; dismissing the popup banner clears the badge and local notice.
 
 ## Permissions
 
@@ -175,7 +188,11 @@ When adding a feature:
 - Three windows in Three Columns
 - Four windows in Quadrants
 - More windows than slots; overflow windows remain unchanged
-- Custom rows, columns, gap, and each margin
+- Import and export the JSON layout collection
+- Capture a current arrangement with Add Custom
+- Warn when captured or imported layouts contain overlapping windows
+- Reject malformed, out-of-range, and duplicate layout entries
+- Custom gap and each margin
 - Maximized and minimized windows
 - Active window on a secondary monitor with negative coordinates
 - Windows split across monitors; only active-monitor windows move

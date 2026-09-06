@@ -1,18 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  CUSTOM_LAYOUT_ID,
-  DEFAULT_LAYOUTS,
-  DEFAULT_LAYOUT_SETTINGS,
-} from "../data/defaultLayouts";
+import { createDefaultLayoutSettings } from "../data/defaultLayouts";
 import { useStorageSync } from "../hooks/useStorageSync";
 import type {
   ArrangeWindowsResult,
   ExtensionUpdateNotice,
-  GridLayout,
   LayoutSettings,
+  WindowLayout,
 } from "../types";
 import { cn } from "../utils/cn";
 import { getDisplayWindowContext } from "../utils/displayBounds";
+import { normalizeLayoutSettings } from "../utils/gridLayout";
 import { getStorageData, setStorageData } from "../utils/storage";
 import styles from "./Popup.module.scss";
 
@@ -27,31 +24,37 @@ interface ArrangeResponse {
   error?: string;
 }
 
-function cloneDefaultSettings(): LayoutSettings {
-  return {
-    ...DEFAULT_LAYOUT_SETTINGS,
-    customLayout: {
-      ...DEFAULT_LAYOUT_SETTINGS.customLayout,
-      margins: { ...DEFAULT_LAYOUT_SETTINGS.customLayout.margins },
-    },
+interface CaptureResponse {
+  success: boolean;
+  result?: {
+    layout: WindowLayout;
+    hasOverlaps: boolean;
   };
+  error?: string;
+}
+
+function cloneDefaultSettings(): LayoutSettings {
+  return createDefaultLayoutSettings();
 }
 
 export function Popup() {
   const [settings, setSettings] = useState<LayoutSettings>(cloneDefaultSettings);
   const [contextLabel, setContextLabel] = useState("Finding active display…");
   const [status, setStatus] = useState("Choose a layout for existing windows.");
-  const [statusKind, setStatusKind] = useState<"idle" | "success" | "error">("idle");
+  const [statusKind, setStatusKind] = useState<
+    "idle" | "success" | "warning" | "error"
+  >("idle");
   const [isApplying, setIsApplying] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
   const [updateNotice, setUpdateNotice] = useState<ExtensionUpdateNotice | null>(null);
 
   const loadSettings = useCallback(async () => {
     try {
-      const saved = await getStorageData<LayoutSettings>(
+      const saved = await getStorageData<unknown>(
         LAYOUT_SETTINGS_KEY,
-        DEFAULT_LAYOUT_SETTINGS
+        createDefaultLayoutSettings()
       );
-      setSettings(saved);
+      setSettings(normalizeLayoutSettings(saved));
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not load settings.");
       setStatusKind("error");
@@ -154,6 +157,37 @@ export function Popup() {
     }
   };
 
+  const addCustomLayout = async () => {
+    setIsCapturing(true);
+    setStatusKind("idle");
+    setStatus("Capturing current window positions…");
+
+    try {
+      const response = (await chrome.runtime.sendMessage({
+        action: "capture-layout",
+      })) as CaptureResponse;
+      if (!response.success || !response.result) {
+        throw new Error(response.error || "Current layout could not be saved.");
+      }
+
+      await loadSettings();
+      const { layout, hasOverlaps } = response.result;
+      setStatus(
+        `Saved ${layout.name} with ${layout.windows.length} window` +
+          (layout.windows.length === 1 ? "." : "s.") +
+          (hasOverlaps ? " Warning: some window positions overlap." : "")
+      );
+      setStatusKind(hasOverlaps ? "warning" : "success");
+    } catch (error) {
+      setStatus(
+        error instanceof Error ? error.message : "Current layout could not be saved."
+      );
+      setStatusKind("error");
+    } finally {
+      setIsCapturing(false);
+    }
+  };
+
   const openInSeparateWindow = async () => {
     await chrome.windows.create({
       url: `${chrome.runtime.getURL("src/popup/index.html")}?standalone=1`,
@@ -171,14 +205,6 @@ export function Popup() {
       chrome.action.setBadgeText({ text: "" }),
     ]);
     setUpdateNotice(null);
-  };
-
-  const customPreset: GridLayout = {
-    id: CUSTOM_LAYOUT_ID,
-    name: "Custom Grid",
-    description: `${settings.customLayout.columns} columns × ${settings.customLayout.rows} rows`,
-    rows: settings.customLayout.rows,
-    columns: settings.customLayout.columns,
   };
 
   return (
@@ -231,7 +257,7 @@ export function Popup() {
 
       <main className={styles.content}>
         <div className={styles.layoutGrid}>
-          {[...DEFAULT_LAYOUTS, customPreset].map((layout) => (
+          {settings.layouts.map((layout) => (
             <button
               key={layout.id}
               type="button"
@@ -243,20 +269,36 @@ export function Popup() {
             >
               <LayoutPreview layout={layout} />
               <span className={styles.layoutName}>{layout.name}</span>
-              <span className={styles.layoutDescription}>{layout.description}</span>
             </button>
           ))}
         </div>
 
-        <button
-          type="button"
-          className={styles.customizeButton}
-          onClick={() => chrome.runtime.openOptionsPage()}
-        >
-          Configure custom grid, gaps, and margins
-        </button>
+        <div className={styles.layoutActions}>
+          <button
+            type="button"
+            className={styles.addCustomButton}
+            disabled={isCapturing || isApplying}
+            onClick={() => void addCustomLayout()}
+          >
+            {isCapturing ? "Saving…" : "Add Custom"}
+          </button>
+          <button
+            type="button"
+            className={styles.customizeButton}
+            onClick={() => chrome.runtime.openOptionsPage()}
+          >
+            Manage layouts
+          </button>
+        </div>
 
-        <div className={cn(styles.status, statusKind === "success" && styles.statusSuccess, statusKind === "error" && styles.statusError)}>
+        <div
+          className={cn(
+            styles.status,
+            statusKind === "success" && styles.statusSuccess,
+            statusKind === "warning" && styles.statusWarning,
+            statusKind === "error" && styles.statusError
+          )}
+        >
           {status}
         </div>
       </main>
@@ -275,19 +317,19 @@ export function Popup() {
   );
 }
 
-function LayoutPreview({ layout }: { layout: GridLayout }) {
-  const cellCount = layout.rows * layout.columns;
+function LayoutPreview({ layout }: { layout: WindowLayout }) {
   return (
-    <span
-      className={styles.preview}
-      style={{
-        gridTemplateColumns: `repeat(${layout.columns}, 1fr)`,
-        gridTemplateRows: `repeat(${layout.rows}, 1fr)`,
-      }}
-      aria-hidden="true"
-    >
-      {Array.from({ length: cellCount }, (_, index) => (
-        <span key={index} />
+    <span className={styles.preview} aria-hidden="true">
+      {layout.windows.map(({ position }, index) => (
+        <span
+          key={index}
+          style={{
+            top: `${position.top * 100}%`,
+            left: `${position.left * 100}%`,
+            width: `${position.width * 100}%`,
+            height: `${position.height * 100}%`,
+          }}
+        />
       ))}
     </span>
   );

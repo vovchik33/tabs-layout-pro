@@ -1,12 +1,20 @@
-import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import {
-  CUSTOM_LAYOUT_ID,
-  DEFAULT_LAYOUTS,
-  DEFAULT_LAYOUT_SETTINGS,
-} from "../data/defaultLayouts";
+  type ChangeEvent,
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { createDefaultLayoutSettings } from "../data/defaultLayouts";
 import { useStorageSync } from "../hooks/useStorageSync";
-import type { CustomLayout, LayoutSettings } from "../types";
-import { GRID_LIMITS, normalizeCustomLayout } from "../utils/gridLayout";
+import type { LayoutMargins, LayoutSettings } from "../types";
+import {
+  GRID_LIMITS,
+  layoutHasOverlaps,
+  normalizeLayoutSettings,
+  parseLayoutCollection,
+} from "../utils/gridLayout";
 import { getStorageData, setStorageData } from "../utils/storage";
 import styles from "./Options.module.scss";
 
@@ -14,29 +22,24 @@ const LAYOUT_SETTINGS_KEY = "layoutSettings";
 const STORAGE_KEYS = [LAYOUT_SETTINGS_KEY];
 
 function cloneDefaultSettings(): LayoutSettings {
-  return {
-    ...DEFAULT_LAYOUT_SETTINGS,
-    customLayout: {
-      ...DEFAULT_LAYOUT_SETTINGS.customLayout,
-      margins: { ...DEFAULT_LAYOUT_SETTINGS.customLayout.margins },
-    },
-  };
+  return createDefaultLayoutSettings();
 }
 
 export function Options() {
   const [settings, setSettings] = useState<LayoutSettings>(cloneDefaultSettings);
   const [status, setStatus] = useState("Settings are synchronized through Chrome.");
   const isDirtyRef = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadSettings = useCallback(async () => {
     if (isDirtyRef.current) return;
 
     try {
-      const saved = await getStorageData<LayoutSettings>(
+      const saved = await getStorageData<unknown>(
         LAYOUT_SETTINGS_KEY,
-        DEFAULT_LAYOUT_SETTINGS
+        createDefaultLayoutSettings()
       );
-      setSettings(saved);
+      setSettings(normalizeLayoutSettings(saved));
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not load settings.");
     }
@@ -47,31 +50,22 @@ export function Options() {
   }, [loadSettings]);
   useStorageSync(STORAGE_KEYS, loadSettings);
 
-  const updateCustom = (changes: Partial<CustomLayout>) => {
+  const updateGap = (gap: number) => {
     isDirtyRef.current = true;
     setSettings((current) => ({
       ...current,
-      customLayout: {
-        ...current.customLayout,
-        ...changes,
-      },
+      gap,
     }));
     setStatus("Unsaved changes.");
   };
 
-  const updateMargin = (
-    edge: keyof CustomLayout["margins"],
-    value: number
-  ) => {
+  const updateMargin = (edge: keyof LayoutMargins, value: number) => {
     isDirtyRef.current = true;
     setSettings((current) => ({
       ...current,
-      customLayout: {
-        ...current.customLayout,
-        margins: {
-          ...current.customLayout.margins,
-          [edge]: value,
-        },
+      margins: {
+        ...current.margins,
+        [edge]: value,
       },
     }));
     setStatus("Unsaved changes.");
@@ -79,10 +73,7 @@ export function Options() {
 
   const saveSettings = async (event: FormEvent) => {
     event.preventDefault();
-    const normalized: LayoutSettings = {
-      ...settings,
-      customLayout: normalizeCustomLayout(settings.customLayout),
-    };
+    const normalized = normalizeLayoutSettings(settings);
     try {
       await setStorageData(LAYOUT_SETTINGS_KEY, normalized);
       isDirtyRef.current = false;
@@ -105,12 +96,57 @@ export function Options() {
     }
   };
 
+  const exportLayouts = () => {
+    const blob = new Blob([`${JSON.stringify(settings.layouts, null, 2)}\n`], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "tabs-layout-pro-layouts.json";
+    link.click();
+    URL.revokeObjectURL(url);
+    setStatus(`Exported ${settings.layouts.length} layouts.`);
+  };
+
+  const importLayouts = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    try {
+      const layouts = parseLayoutCollection(JSON.parse(await file.text()));
+      const overlappingLayoutCount = layouts.filter(layoutHasOverlaps).length;
+      isDirtyRef.current = true;
+      setSettings((current) => ({
+        ...current,
+        layouts,
+        selectedLayoutId: layouts.some(
+          (layout) => layout.id === current.selectedLayoutId
+        )
+          ? current.selectedLayoutId
+          : layouts[0].id,
+      }));
+      setStatus(
+        `Imported ${layouts.length} layouts. ` +
+          (overlappingLayoutCount > 0
+            ? `Warning: ${overlappingLayoutCount} contain overlapping windows. `
+            : "") +
+          "Save to apply changes."
+      );
+    } catch (error) {
+      setStatus(
+        error instanceof Error ? `Import failed: ${error.message}` : "Import failed."
+      );
+    }
+  };
+
   return (
     <main className={styles.page}>
       <header className={styles.pageHeader}>
         <div>
           <h1>Tabs Layout Pro Settings</h1>
-          <p>Configure the default grid and spacing used to arrange existing windows.</p>
+          <p>Configure layouts and spacing used to arrange existing windows.</p>
         </div>
       </header>
 
@@ -130,42 +166,61 @@ export function Options() {
                 setStatus("Unsaved changes.");
               }}
             >
-              {DEFAULT_LAYOUTS.map((layout) => (
+              {settings.layouts.map((layout) => (
                 <option key={layout.id} value={layout.id}>
                   {layout.name}
                 </option>
               ))}
-              <option value={CUSTOM_LAYOUT_ID}>Custom Grid</option>
             </select>
           </label>
         </section>
 
         <section>
-          <h2>Grid and spacing</h2>
+          <h2>Layout configuration</h2>
           <p className={styles.help}>
-            Rows and columns define the Custom Grid. Gap and margins apply to every layout.
+            Importing replaces all layouts. Changes take effect after you save settings.
+          </p>
+          <div className={styles.inlineActions}>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={exportLayouts}
+            >
+              Export JSON
+            </button>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              Import JSON
+            </button>
+            <span className={styles.layoutCount}>
+              {settings.layouts.length} layout
+              {settings.layouts.length === 1 ? "" : "s"}
+            </span>
+            <input
+              ref={fileInputRef}
+              className={styles.fileInput}
+              type="file"
+              accept=".json,application/json"
+              onChange={(event) => void importLayouts(event)}
+            />
+          </div>
+        </section>
+
+        <section>
+          <h2>Spacing</h2>
+          <p className={styles.help}>
+            Gap and margins apply to every imported layout.
           </p>
           <div className={styles.fieldGrid}>
             <NumberField
-              label="Rows"
-              value={settings.customLayout.rows}
-              min={GRID_LIMITS.rows.min}
-              max={GRID_LIMITS.rows.max}
-              onChange={(rows) => updateCustom({ rows })}
-            />
-            <NumberField
-              label="Columns"
-              value={settings.customLayout.columns}
-              min={GRID_LIMITS.columns.min}
-              max={GRID_LIMITS.columns.max}
-              onChange={(columns) => updateCustom({ columns })}
-            />
-            <NumberField
               label="Gap (px)"
-              value={settings.customLayout.gap}
+              value={settings.gap}
               min={GRID_LIMITS.gap.min}
               max={GRID_LIMITS.gap.max}
-              onChange={(gap) => updateCustom({ gap })}
+              onChange={updateGap}
             />
           </div>
         </section>
@@ -180,7 +235,7 @@ export function Options() {
               <NumberField
                 key={edge}
                 label={`${edge[0].toUpperCase()}${edge.slice(1)} (px)`}
-                value={settings.customLayout.margins[edge]}
+                value={settings.margins[edge]}
                 min={GRID_LIMITS.margin.min}
                 max={GRID_LIMITS.margin.max}
                 onChange={(value) => updateMargin(edge, value)}
@@ -205,8 +260,8 @@ export function Options() {
       </form>
 
       <aside className={styles.note}>
-        Tabs Layout Pro never creates windows. If the selected grid has fewer slots than
-        eligible windows, extra windows remain unchanged.
+        Tabs Layout Pro never creates windows. If the selected layout has fewer slots
+        than eligible windows, extra windows remain unchanged.
       </aside>
     </main>
   );
