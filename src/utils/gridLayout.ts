@@ -258,15 +258,24 @@ export function normalizeLayoutSettings(value: unknown): LayoutSettings {
   const legacyCustomLayout = isRecord(value.customLayout)
     ? value.customLayout
     : undefined;
-  const gap = clampInteger(
+  const normalizedGap = clampInteger(
     readNumber(value.gap, readNumber(legacyCustomLayout?.gap, defaults.gap)),
     GRID_LIMITS.gap.min,
     GRID_LIMITS.gap.max
   );
-  const margins = normalizeMargins(
-    value.margins ?? legacyCustomLayout?.margins,
-    defaults.margins
-  );
+  const applyGap =
+    typeof value.applyGap === "boolean" ? value.applyGap : defaults.applyGap;
+  const gap = applyGap ? normalizedGap : 0;
+  const applyMargins =
+    typeof value.applyMargins === "boolean"
+      ? value.applyMargins
+      : defaults.applyMargins;
+  const margins = applyMargins
+    ? normalizeMargins(
+        value.margins ?? legacyCustomLayout?.margins,
+        defaults.margins
+      )
+    : { top: 0, right: 0, bottom: 0, left: 0 };
   const selectedLayoutId =
     typeof value.selectedLayoutId === "string" &&
     layouts.some((layout) => layout.id === value.selectedLayoutId)
@@ -276,7 +285,9 @@ export function normalizeLayoutSettings(value: unknown): LayoutSettings {
   return {
     selectedLayoutId,
     layouts,
+    applyGap,
     gap,
+    applyMargins,
     margins,
   };
 }

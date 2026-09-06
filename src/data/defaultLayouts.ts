@@ -6,7 +6,9 @@ export const DEFAULT_LAYOUTS: WindowLayout[] = defaultLayouts;
 export const DEFAULT_LAYOUT_SETTINGS: LayoutSettings = {
   selectedLayoutId: "two-columns",
   layouts: DEFAULT_LAYOUTS,
+  applyGap: true,
   gap: 8,
+  applyMargins: true,
   margins: {
     top: 8,
     right: 8,

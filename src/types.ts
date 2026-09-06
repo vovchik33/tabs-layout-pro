@@ -24,7 +24,9 @@ export interface WindowLayout {
 export interface LayoutSettings {
   selectedLayoutId: string;
   layouts: WindowLayout[];
+  applyGap: boolean;
   gap: number;
+  applyMargins: boolean;
   margins: LayoutMargins;
 }
 

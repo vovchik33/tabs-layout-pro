@@ -21,6 +21,11 @@ import styles from "./Options.module.scss";
 const LAYOUT_SETTINGS_KEY = "layoutSettings";
 const STORAGE_KEYS = [LAYOUT_SETTINGS_KEY];
 
+interface ArrangeResponse {
+  success: boolean;
+  error?: string;
+}
+
 function cloneDefaultSettings(): LayoutSettings {
   return createDefaultLayoutSettings();
 }
@@ -50,6 +55,16 @@ export function Options() {
   }, [loadSettings]);
   useStorageSync(STORAGE_KEYS, loadSettings);
 
+  const updateApplyGap = (applyGap: boolean) => {
+    isDirtyRef.current = true;
+    setSettings((current) => ({
+      ...current,
+      applyGap,
+      gap: applyGap ? current.gap : 0,
+    }));
+    setStatus("Unsaved changes.");
+  };
+
   const updateGap = (gap: number) => {
     isDirtyRef.current = true;
     setSettings((current) => ({
@@ -71,16 +86,55 @@ export function Options() {
     setStatus("Unsaved changes.");
   };
 
+  const updateApplyMargins = (applyMargins: boolean) => {
+    isDirtyRef.current = true;
+    setSettings((current) => ({
+      ...current,
+      applyMargins,
+      margins: applyMargins
+        ? current.margins
+        : { top: 0, right: 0, bottom: 0, left: 0 },
+    }));
+    setStatus("Unsaved changes.");
+  };
+
   const saveSettings = async (event: FormEvent) => {
     event.preventDefault();
     const normalized = normalizeLayoutSettings(settings);
     try {
       await setStorageData(LAYOUT_SETTINGS_KEY, normalized);
-      isDirtyRef.current = false;
-      setSettings(normalized);
-      setStatus("Settings saved.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not save settings.");
+      return;
+    }
+
+    isDirtyRef.current = false;
+    setSettings(normalized);
+    if (normalized.selectedLayoutId === "") {
+      setStatus("Settings saved.");
+      return;
+    }
+
+    try {
+      const response = (await chrome.runtime.sendMessage({
+        action: "arrange-windows",
+        layoutId: normalized.selectedLayoutId,
+        preserveWindowSlots: true,
+        settings: normalized,
+      })) as ArrangeResponse;
+      setStatus(
+        response.success
+          ? "Settings saved and layout applied."
+          : `Settings saved, but layout could not be applied: ${
+              response.error ?? "Unknown error."
+            }`
+      );
+    } catch (error) {
+      setStatus(
+        `Settings saved, but layout could not be applied: ${
+          error instanceof Error ? error.message : "Unknown error."
+        }`
+      );
     }
   };
 
@@ -230,15 +284,26 @@ export function Options() {
 
         <section>
           <h2>Spacing</h2>
-          <p className={styles.help}>
-            Gap and margins apply to every imported layout.
-          </p>
+          <div className={styles.spacingHeader}>
+            <p className={styles.help}>
+              Gap and margins apply to every imported layout.
+            </p>
+            <label className={styles.toggleField}>
+              <input
+                type="checkbox"
+                checked={settings.applyGap}
+                onChange={(event) => updateApplyGap(event.target.checked)}
+              />
+              <span>Add gap</span>
+            </label>
+          </div>
           <div className={styles.fieldGrid}>
             <NumberField
               label="Gap (px)"
               value={settings.gap}
               min={GRID_LIMITS.gap.min}
               max={GRID_LIMITS.gap.max}
+              disabled={!settings.applyGap}
               onChange={updateGap}
             />
           </div>
@@ -246,10 +311,20 @@ export function Options() {
 
         <section>
           <h2>Screen margins</h2>
-          <p className={styles.help}>
-            Insets are measured from the active monitor's available work area.
-          </p>
-          <div className={styles.fieldGrid}>
+          <div className={styles.spacingHeader}>
+            <p className={styles.help}>
+              Insets are measured from the active monitor's available work area.
+            </p>
+            <label className={styles.toggleField}>
+              <input
+                type="checkbox"
+                checked={settings.applyMargins}
+                onChange={(event) => updateApplyMargins(event.target.checked)}
+              />
+              <span>Add margins</span>
+            </label>
+          </div>
+          <div className={`${styles.fieldGrid} ${styles.marginGrid}`}>
             {(["top", "right", "bottom", "left"] as const).map((edge) => (
               <NumberField
                 key={edge}
@@ -257,6 +332,7 @@ export function Options() {
                 value={settings.margins[edge]}
                 min={GRID_LIMITS.margin.min}
                 max={GRID_LIMITS.margin.max}
+                disabled={!settings.applyMargins}
                 onChange={(value) => updateMargin(edge, value)}
               />
             ))}
@@ -285,10 +361,18 @@ interface NumberFieldProps {
   value: number;
   min: number;
   max: number;
+  disabled?: boolean;
   onChange: (value: number) => void;
 }
 
-function NumberField({ label, value, min, max, onChange }: NumberFieldProps) {
+function NumberField({
+  label,
+  value,
+  min,
+  max,
+  disabled = false,
+  onChange,
+}: NumberFieldProps) {
   return (
     <label className={styles.field}>
       <span>{label}</span>
@@ -297,6 +381,7 @@ function NumberField({ label, value, min, max, onChange }: NumberFieldProps) {
         value={value}
         min={min}
         max={max}
+        disabled={disabled}
         onChange={(event) => onChange(Number(event.target.value))}
       />
     </label>

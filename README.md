@@ -9,7 +9,7 @@ Arrange existing Chrome windows into clean grid layouts on the monitor containin
 - Capture current window positions as additional custom layouts
 - Remove any layout from the popup
 - Import and export layouts as JSON
-- Configurable gap and per-edge screen margins
+- Optional configurable gap and per-edge screen margins
 - Uses each monitor's available work area, excluding docks and taskbars
 - Arranges existing normal windows only; never creates layout windows
 - Reuses layout positions from the start when there are more windows than slots
@@ -133,6 +133,8 @@ Layouts are JSON arrays. Every window position uses normalized coordinates from 
 
 Positions are relative to the display work area after screen margins. Configured gaps are split across shared slot edges. Layout IDs must be unique and rectangles must remain inside the normalized area. Overlapping windows are allowed and reported as a warning. Import and export are available from Settings; importing replaces the complete layout collection after Save Settings.
 
+Saving settings immediately reapplies the selected layout, including updated gap and margin options. Disabling Add gap sets the gap to `0`; disabling Add margins sets all four margins to `0`.
+
 Before applying bounds, maximized, minimized, or fullscreen windows are changed to `"normal"`. Chrome requires moved/resized windows to remain sufficiently visible; keep positions, margins, and gaps reasonable.
 
 ### Popup modes
@@ -148,7 +150,9 @@ Synced:
 
 - `layoutSettings.selectedLayoutId`
 - `layoutSettings.layouts`
+- `layoutSettings.applyGap`
 - `layoutSettings.gap`
+- `layoutSettings.applyMargins`
 - `layoutSettings.margins`
 
 Local:

@@ -2,6 +2,8 @@ import type { ArrangeWindowsResult, LayoutSettings } from "../types";
 import { displayWorkArea, getDisplayWindowContext } from "./displayBounds";
 import { calculateLayoutSlots, normalizeLayoutSettings } from "./gridLayout";
 
+const ZERO_MARGINS = { top: 0, right: 0, bottom: 0, left: 0 };
+
 async function updateWindowBounds(
   win: chrome.windows.Window,
   bounds: { left: number; top: number; width: number; height: number }
@@ -89,8 +91,8 @@ export async function arrangeWindows(
   const slots = calculateLayoutSlots(
     displayWorkArea(context.display),
     layout,
-    normalizedSettings.gap,
-    normalizedSettings.margins
+    normalizedSettings.applyGap ? normalizedSettings.gap : 0,
+    normalizedSettings.applyMargins ? normalizedSettings.margins : ZERO_MARGINS
   );
   const windowsToArrange = context.windows;
   const activeWindowId = context.activeWindow.id;
@@ -141,8 +143,8 @@ export async function moveActiveWindowToSlot(
   const slots = calculateLayoutSlots(
     displayWorkArea(context.display),
     layout,
-    normalizedSettings.gap,
-    normalizedSettings.margins
+    normalizedSettings.applyGap ? normalizedSettings.gap : 0,
+    normalizedSettings.applyMargins ? normalizedSettings.margins : ZERO_MARGINS
   );
   const activeWindowId = context.activeWindow.id;
   if (activeWindowId === undefined) {
@@ -182,8 +184,8 @@ export async function arrangeWindowsWithActiveSlot(
   const slots = calculateLayoutSlots(
     displayWorkArea(context.display),
     layout,
-    normalizedSettings.gap,
-    normalizedSettings.margins
+    normalizedSettings.applyGap ? normalizedSettings.gap : 0,
+    normalizedSettings.applyMargins ? normalizedSettings.margins : ZERO_MARGINS
   );
   const activeWindowId = context.activeWindow.id;
   if (activeWindowId === undefined) {

@@ -57,10 +57,26 @@
   font-size: 12px;
 }
 
+.spacingHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -5px 0 12px;
+
+  .help {
+    margin: 0;
+  }
+}
+
 .fieldGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
   gap: 12px;
+}
+
+.marginGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .field {
@@ -85,6 +101,29 @@
       outline: 2px solid $color-indigo-300;
       border-color: $color-indigo-600;
     }
+
+    &:disabled {
+      background: $color-slate-100;
+      color: $color-slate-400;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.toggleField {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 8px;
+  color: $color-slate-600;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+
+  input {
+    width: 16px;
+    height: 16px;
+    accent-color: $color-indigo-600;
   }
 }
 

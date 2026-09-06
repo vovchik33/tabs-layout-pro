@@ -24,13 +24,19 @@ import { getStorageData, setStorageData } from "./utils/storage";
 const LAYOUT_SETTINGS_KEY = "layoutSettings";
 let arrangementQueue: Promise<void> = Promise.resolve();
 
-function applyLayout(layoutId?: string, preserveWindowSlots = false) {
+function applyLayout(
+  layoutId?: string,
+  preserveWindowSlots = false,
+  settingsOverride?: unknown
+) {
   const operation = arrangementQueue.then(async () => {
-    const savedSettings = await getStorageData<unknown>(
-      LAYOUT_SETTINGS_KEY,
-      createDefaultLayoutSettings()
+    const settings = normalizeLayoutSettings(
+      settingsOverride ??
+        (await getStorageData<unknown>(
+          LAYOUT_SETTINGS_KEY,
+          createDefaultLayoutSettings()
+        ))
     );
-    const settings = normalizeLayoutSettings(savedSettings);
     return arrangeWindows(settings, layoutId, preserveWindowSlots);
   });
 
@@ -92,7 +98,9 @@ function captureCurrentLayout() {
     const windows = captureLayoutWindows(
       displayWorkArea(context.display),
       context.windows.map(getWindowBounds),
-      settings.margins
+      settings.applyMargins
+        ? settings.margins
+        : { top: 0, right: 0, bottom: 0, left: 0 }
     );
 
     let suffix = 1;
@@ -158,7 +166,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     message.action === "arrange-windows"
       ? applyLayout(
           typeof message.layoutId === "string" ? message.layoutId : undefined,
-          message.preserveWindowSlots === true
+          message.preserveWindowSlots === true,
+          message.settings
         )
       : message.action === "arrange-layout-slot" &&
           typeof message.layoutId === "string" &&
