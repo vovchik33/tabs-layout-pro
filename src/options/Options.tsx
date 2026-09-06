@@ -208,7 +208,7 @@ export function Options() {
     <main className={styles.page}>
       <header className={styles.pageHeader}>
         <div>
-          <h1>Tabs Layout Pro Settings</h1>
+          <h1>Settings</h1>
           <p>Configure layouts and spacing used to arrange existing windows.</p>
         </div>
       </header>
