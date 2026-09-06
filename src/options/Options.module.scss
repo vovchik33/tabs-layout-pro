@@ -1,0 +1,155 @@
+@use "../styles/tokens" as *;
+
+:global(body) {
+  margin: 0;
+  background: $color-slate-50;
+  color: $color-slate-800;
+  font-family: $font-family;
+}
+
+:global(*) {
+  box-sizing: border-box;
+}
+
+.page {
+  width: min(840px, calc(100% - 32px));
+  margin: 24px auto;
+}
+
+.pageHeader {
+  margin-bottom: 18px;
+
+  h1 {
+    margin: 0;
+    font-size: 23px;
+    letter-spacing: -0.025em;
+  }
+
+  p {
+    margin: 6px 0 0;
+    color: $color-slate-500;
+    font-size: 13px;
+  }
+}
+
+.card {
+  padding: 24px;
+  border: 1px solid $color-slate-200;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 5%);
+
+  section + section {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid $color-slate-100;
+  }
+
+  h2 {
+    margin: 0 0 12px;
+    font-size: 14px;
+  }
+}
+
+.help {
+  margin: -5px 0 12px;
+  color: $color-slate-500;
+  font-size: 12px;
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: $color-slate-600;
+  font-size: 12px;
+  font-weight: 600;
+
+  input,
+  select {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid $color-slate-200;
+    border-radius: 7px;
+    background: #fff;
+    color: $color-slate-900;
+    font: inherit;
+
+    &:focus {
+      outline: 2px solid $color-indigo-300;
+      border-color: $color-indigo-600;
+    }
+  }
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid $color-slate-100;
+}
+
+.primaryButton,
+.secondaryButton {
+  padding: 9px 14px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primaryButton {
+  border: 1px solid $color-indigo-600;
+  background: $color-indigo-600;
+  color: #fff;
+
+  &:hover {
+    background: $color-indigo-700;
+  }
+}
+
+.secondaryButton {
+  border: 1px solid $color-slate-200;
+  background: #fff;
+  color: $color-slate-600;
+
+  &:hover {
+    background: $color-slate-50;
+  }
+}
+
+.status {
+  margin-left: auto;
+  color: $color-slate-500;
+  font-size: 11px;
+}
+
+.note {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid $color-indigo-100;
+  border-radius: 9px;
+  background: $color-indigo-50;
+  color: $color-slate-600;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+@media (max-width: 560px) {
+  .actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .status {
+    margin-left: 0;
+  }
+}

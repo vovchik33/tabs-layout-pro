@@ -1,0 +1,8 @@
+---
+description: Tabs Layout Pro architecture and development constraints
+alwaysApply: true
+---
+
+Read and follow `/AGENTS.md` before changing this repository. Use `/README.md` for architecture, setup, testing, and release workflows.
+
+Make focused changes, preserve the monitor/grid/window layer boundaries, and run `npm run lint` plus `npm run build`. Never create commits, tags, packages, or external changes unless explicitly requested.

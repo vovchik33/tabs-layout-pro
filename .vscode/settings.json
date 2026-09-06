@@ -1,0 +1,9 @@
+{
+  "VsCodeTaskButtons.tasks": [
+    {
+      "label": "$(layout) Build",
+      "task": "build",
+      "tooltip": "npm run build"
+    }
+  ]
+}

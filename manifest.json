@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Tabs Layout Pro",
+  "version": "0.0.0",
+  "description": "Arrange existing Chrome windows into configurable grid layouts on the active monitor.",
+  "permissions": [
+    "storage",
+    "commands",
+    "system.display"
+  ],
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "action": {
+    "default_popup": "src/popup/index.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "options_page": "src/options/index.html",
+  "background": {
+    "service_worker": "src/background.ts",
+    "type": "module"
+  },
+  "commands": {
+    "apply-layout": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+L",
+        "mac": "MacCtrl+Shift+L"
+      },
+      "description": "Apply the selected window layout to the active monitor"
+    }
+  }
+}
