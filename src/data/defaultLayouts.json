@@ -1,7 +1,6 @@
 [
   {
     "id": "two-columns",
-    "name": "Two Columns",
     "windows": [
       {
         "position": {
@@ -23,7 +22,6 @@
   },
   {
     "id": "two-rows",
-    "name": "Two Rows",
     "windows": [
       {
         "position": {
@@ -45,7 +43,6 @@
   },
   {
     "id": "three-columns",
-    "name": "Three Columns",
     "windows": [
       {
         "position": {
@@ -75,7 +72,6 @@
   },
   {
     "id": "quadrants",
-    "name": "Quadrants",
     "windows": [
       {
         "position": {

@@ -17,7 +17,7 @@
 - Target only the monitor containing the last-focused normal browser window.
 - Exclude popup/devtools/non-normal windows.
 - Active window is first; remaining windows use deterministic spatial order.
-- Arrange at most `layout.windows.length`; leave overflow windows unchanged.
+- Arrange every eligible window; when windows outnumber slots, reuse slots from index `0`.
 - Use display `workArea`, margins, and gaps; support negative monitor coordinates.
 - Normalize non-normal window states before applying bounds.
 - Put multi-step window work in the service worker because toolbar popups are ephemeral.

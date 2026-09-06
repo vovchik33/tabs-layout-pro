@@ -46,6 +46,7 @@ export function Popup() {
   >("idle");
   const [isApplying, setIsApplying] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isMovingWindow, setIsMovingWindow] = useState(false);
   const [updateNotice, setUpdateNotice] = useState<ExtensionUpdateNotice | null>(null);
 
   const loadSettings = useCallback(async () => {
@@ -126,15 +127,63 @@ export function Popup() {
     }
   };
 
-  const applySelectedLayout = async () => {
+  const removeLayout = async (layoutId: string) => {
+    const previous = settings;
+    const layouts = settings.layouts.filter((layout) => layout.id !== layoutId);
+    const next = {
+      ...settings,
+      layouts,
+      selectedLayoutId:
+        settings.selectedLayoutId === layoutId
+          ? (layouts[0]?.id ?? "")
+          : settings.selectedLayoutId,
+    };
+    setSettings(next);
+    try {
+      await setStorageData(LAYOUT_SETTINGS_KEY, next);
+      setStatus("Layout removed.");
+      setStatusKind("success");
+    } catch (error) {
+      setSettings(previous);
+      setStatus(error instanceof Error ? error.message : "Could not remove layout.");
+      setStatusKind("error");
+    }
+  };
+
+  const restoreDefaultLayouts = async () => {
+    const defaults = createDefaultLayoutSettings();
+    const restored = {
+      ...settings,
+      selectedLayoutId: defaults.selectedLayoutId,
+      layouts: defaults.layouts,
+    };
+    try {
+      await setStorageData(LAYOUT_SETTINGS_KEY, restored);
+      setSettings(restored);
+      setStatus("Default layouts restored.");
+      setStatusKind("success");
+    } catch (error) {
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Could not restore default layouts."
+      );
+      setStatusKind("error");
+    }
+  };
+
+  const applyLayout = async (layoutId: string) => {
     setIsApplying(true);
     setStatusKind("idle");
     setStatus("Arranging windows…");
 
     try {
+      const preserveWindowSlots = settings.selectedLayoutId === layoutId;
+      await selectLayout(layoutId);
       const response = (await chrome.runtime.sendMessage({
         action: "arrange-windows",
-        layoutId: settings.selectedLayoutId,
+        layoutId,
+        preserveWindowSlots,
       })) as ArrangeResponse;
 
       if (!response.success || !response.result) {
@@ -157,6 +206,48 @@ export function Popup() {
     }
   };
 
+  const arrangeLayoutSlot = async (
+    layoutId: string,
+    slotIndex: number,
+    moveOnlyCurrent: boolean
+  ) => {
+    setIsMovingWindow(true);
+    setStatusKind("idle");
+    setStatus(moveOnlyCurrent ? "Moving current window…" : "Arranging windows…");
+
+    try {
+      if (!moveOnlyCurrent) {
+        await selectLayout(layoutId);
+      }
+      const response = (await chrome.runtime.sendMessage({
+        action: "arrange-layout-slot",
+        layoutId,
+        slotIndex,
+        moveOnlyCurrent,
+      })) as ArrangeResponse;
+      if (!response.success || !response.result) {
+        throw new Error(response.error || "Current window could not be moved.");
+      }
+
+      setStatus(
+        moveOnlyCurrent
+          ? `Moved current window to position ${slotIndex + 1} on ${response.result.displayName}.`
+          : `Arranged ${response.result.arrangedCount} window` +
+            (response.result.arrangedCount === 1 ? "" : "s") +
+            ` with the current window in position ${slotIndex + 1}.`
+      );
+      setStatusKind("success");
+      await loadContext();
+    } catch (error) {
+      setStatus(
+        error instanceof Error ? error.message : "Current window could not be moved."
+      );
+      setStatusKind("error");
+    } finally {
+      setIsMovingWindow(false);
+    }
+  };
+
   const addCustomLayout = async () => {
     setIsCapturing(true);
     setStatusKind("idle");
@@ -173,7 +264,7 @@ export function Popup() {
       await loadSettings();
       const { layout, hasOverlaps } = response.result;
       setStatus(
-        `Saved ${layout.name} with ${layout.windows.length} window` +
+        `Saved ${layout.id} with ${layout.windows.length} window` +
           (layout.windows.length === 1 ? "." : "s.") +
           (hasOverlaps ? " Warning: some window positions overlap." : "")
       );
@@ -256,38 +347,91 @@ export function Popup() {
       )}
 
       <main className={styles.content}>
-        <div className={styles.layoutGrid}>
+        <div
+          className={cn(
+            styles.layoutGrid,
+            settings.layouts.length > 6 && styles.layoutGridDense
+          )}
+        >
           {settings.layouts.map((layout) => (
-            <button
-              key={layout.id}
-              type="button"
-              className={cn(
-                styles.layoutCard,
-                settings.selectedLayoutId === layout.id && styles.layoutCardSelected
-              )}
-              onClick={() => void selectLayout(layout.id)}
-            >
-              <LayoutPreview layout={layout} />
-              <span className={styles.layoutName}>{layout.name}</span>
-            </button>
+            <div key={layout.id} className={styles.layoutCardWrapper}>
+              <div
+                className={cn(
+                  styles.layoutCard,
+                  settings.selectedLayoutId === layout.id &&
+                    styles.layoutCardSelected
+                )}
+                role="button"
+                tabIndex={isApplying || isCapturing || isMovingWindow ? -1 : 0}
+                aria-disabled={isApplying || isCapturing || isMovingWindow}
+                onClick={() => {
+                  if (!isApplying && !isCapturing && !isMovingWindow) {
+                    void applyLayout(layout.id);
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (
+                    event.target === event.currentTarget &&
+                    (event.key === "Enter" || event.key === " ") &&
+                    !isApplying &&
+                    !isCapturing &&
+                    !isMovingWindow
+                  ) {
+                    event.preventDefault();
+                    void applyLayout(layout.id);
+                  }
+                }}
+              >
+                <LayoutPreview
+                  layout={layout}
+                  disabled={isApplying || isCapturing || isMovingWindow}
+                  onSelectSlot={(slotIndex, moveOnlyCurrent) =>
+                    void arrangeLayoutSlot(
+                      layout.id,
+                      slotIndex,
+                      moveOnlyCurrent
+                    )
+                  }
+                />
+              </div>
+              <button
+                type="button"
+                className={styles.removeLayoutButton}
+                aria-label={`Remove ${layout.id}`}
+                title={`Remove ${layout.id}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void removeLayout(layout.id);
+                }}
+              >
+                ×
+              </button>
+            </div>
           ))}
+          {settings.layouts.length === 0 && (
+            <div className={styles.emptyLayouts}>
+              <span>
+                No layouts. Capture the current windows or import a configuration.
+              </span>
+              <button
+                type="button"
+                className={styles.emptyRestoreButton}
+                onClick={() => void restoreDefaultLayouts()}
+              >
+                Restore Defaults
+              </button>
+            </div>
+          )}
         </div>
 
         <div className={styles.layoutActions}>
           <button
             type="button"
             className={styles.addCustomButton}
-            disabled={isCapturing || isApplying}
+            disabled={isCapturing || isApplying || isMovingWindow}
             onClick={() => void addCustomLayout()}
           >
-            {isCapturing ? "Saving…" : "Add Custom"}
-          </button>
-          <button
-            type="button"
-            className={styles.customizeButton}
-            onClick={() => chrome.runtime.openOptionsPage()}
-          >
-            Manage layouts
+            {isCapturing ? "Saving…" : "Add Current"}
           </button>
         </div>
 
@@ -302,27 +446,31 @@ export function Popup() {
           {status}
         </div>
       </main>
-
-      <footer className={styles.footer}>
-        <button
-          type="button"
-          className={styles.applyButton}
-          disabled={isApplying}
-          onClick={() => void applySelectedLayout()}
-        >
-          {isApplying ? "Applying…" : "Apply Layout"}
-        </button>
-      </footer>
     </div>
   );
 }
 
-function LayoutPreview({ layout }: { layout: WindowLayout }) {
+interface LayoutPreviewProps {
+  layout: WindowLayout;
+  disabled: boolean;
+  onSelectSlot: (slotIndex: number, moveOnlyCurrent: boolean) => void;
+}
+
+function LayoutPreview({ layout, disabled, onSelectSlot }: LayoutPreviewProps) {
   return (
-    <span className={styles.preview} aria-hidden="true">
+    <div className={styles.preview}>
       {layout.windows.map(({ position }, index) => (
-        <span
+        <button
           key={index}
+          type="button"
+          className={styles.previewSlot}
+          disabled={disabled}
+          aria-label={`Arrange ${layout.id} with current window in position ${index + 1}; Shift click moves only the current window`}
+          title={`Click to arrange all; Shift+click to move only current window`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelectSlot(index, event.shiftKey);
+          }}
           style={{
             top: `${position.top * 100}%`,
             left: `${position.left * 100}%`,
@@ -331,7 +479,7 @@ function LayoutPreview({ layout }: { layout: WindowLayout }) {
           }}
         />
       ))}
-    </span>
+    </div>
   );
 }
 

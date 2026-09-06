@@ -84,15 +84,24 @@ export function Options() {
     }
   };
 
-  const resetSettings = async () => {
+  const restoreDefaultLayouts = async () => {
     const defaults = cloneDefaultSettings();
+    const restored = {
+      ...settings,
+      selectedLayoutId: defaults.selectedLayoutId,
+      layouts: defaults.layouts,
+    };
     try {
-      await setStorageData(LAYOUT_SETTINGS_KEY, defaults);
+      await setStorageData(LAYOUT_SETTINGS_KEY, restored);
       isDirtyRef.current = false;
-      setSettings(defaults);
-      setStatus("Defaults restored.");
+      setSettings(restored);
+      setStatus("Default layouts restored.");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Could not restore defaults.");
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Could not restore default layouts."
+      );
     }
   };
 
@@ -125,7 +134,7 @@ export function Options() {
           (layout) => layout.id === current.selectedLayoutId
         )
           ? current.selectedLayoutId
-          : layouts[0].id,
+          : (layouts[0]?.id ?? ""),
       }));
       setStatus(
         `Imported ${layouts.length} layouts. ` +
@@ -166,9 +175,12 @@ export function Options() {
                 setStatus("Unsaved changes.");
               }}
             >
+              {settings.layouts.length === 0 && (
+                <option value="">No layouts available</option>
+              )}
               {settings.layouts.map((layout) => (
                 <option key={layout.id} value={layout.id}>
-                  {layout.name}
+                  {layout.id}
                 </option>
               ))}
             </select>
@@ -194,6 +206,13 @@ export function Options() {
               onClick={() => fileInputRef.current?.click()}
             >
               Import JSON
+            </button>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={() => void restoreDefaultLayouts()}
+            >
+              Restore Defaults
             </button>
             <span className={styles.layoutCount}>
               {settings.layouts.length} layout
@@ -248,20 +267,14 @@ export function Options() {
           <button type="submit" className={styles.primaryButton}>
             Save Settings
           </button>
-          <button
-            type="button"
-            className={styles.secondaryButton}
-            onClick={() => void resetSettings()}
-          >
-            Restore Defaults
-          </button>
           <span className={styles.status}>{status}</span>
         </div>
       </form>
 
       <aside className={styles.note}>
         Tabs Layout Pro never creates windows. If the selected layout has fewer slots
-        than eligible windows, extra windows remain unchanged.
+        than eligible windows, extra windows reuse positions starting from the first
+        slot.
       </aside>
     </main>
   );

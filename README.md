@@ -5,12 +5,14 @@ Arrange existing Chrome windows into clean grid layouts on the monitor containin
 ## Features
 
 - Built-in Two Columns, Two Rows, Three Columns, and Quadrants layouts
+- Choose the current window's position, or move only it with Shift+click
 - Capture current window positions as additional custom layouts
+- Remove any layout from the popup
 - Import and export layouts as JSON
 - Configurable gap and per-edge screen margins
 - Uses each monitor's available work area, excluding docks and taskbars
 - Arranges existing normal windows only; never creates layout windows
-- Leaves overflow windows unchanged when the grid has fewer slots
+- Reuses layout positions from the start when there are more windows than slots
 - Toolbar popup, persistent detached popup, and keyboard shortcut
 - Synced settings and a dismissible post-update notification
 
@@ -46,12 +48,17 @@ This rebuilds `dist/` on changes; it does not provide HMR. If Chrome keeps stale
 
 1. Open two or more normal Chrome windows on one monitor.
 2. Open Tabs Layout Pro.
-3. Select a layout.
-4. Click **Apply Layout**.
+3. Click a layout card to apply it.
 
-The active window is assigned to the first configured slot. Remaining windows follow in deterministic top-to-bottom, left-to-right order and are assigned to subsequent slots. Extra windows remain unchanged.
+The active window is assigned to the first configured slot. Remaining windows follow in deterministic top-to-bottom, left-to-right order and are assigned to subsequent slots. When there are more windows than slots, assignment restarts at slot `0`.
 
-Use **Add Custom** in the popup to capture the current positions of normal Chrome windows on the active monitor. The new layout is synchronized, selected automatically, and named `Custom Layout N`. Overlapping positions are saved with a warning.
+Applying the already selected layout keeps each window in its nearest existing slot, so repeated application does not reorder windows.
+
+Click an individual position inside a layout preview to apply the layout with the current normal Chrome window in that position. Shift+click a position to move only the current window; other windows remain unchanged.
+
+Use **Add Current** in the popup to capture the current positions of normal Chrome windows on the active monitor. The new layout is synchronized, selected automatically, and assigned an ID such as `custom-1`. Overlapping positions are saved with a warning.
+
+Hover a layout card to reveal its remove button. All layouts can be removed; use Add Current, import a configuration, or restore defaults in Settings to add layouts again.
 
 Configure the shortcut at `chrome://extensions/shortcuts`. The default is `Ctrl+Shift+L` (`MacCtrl+Shift+L` on macOS).
 
@@ -112,7 +119,6 @@ Layouts are JSON arrays. Every window position uses normalized coordinates from 
 [
   {
     "id": "two-columns",
-    "name": "Two Columns",
     "windows": [
       {
         "position": { "top": 0, "left": 0, "width": 0.5, "height": 1 }
@@ -187,9 +193,10 @@ When adding a feature:
 - Two windows in horizontal and vertical layouts
 - Three windows in Three Columns
 - Four windows in Quadrants
-- More windows than slots; overflow windows remain unchanged
+- More windows than slots; assignment restarts at slot `0`
+- Click each preview position to arrange all windows; Shift+click to move only the current window
 - Import and export the JSON layout collection
-- Capture a current arrangement with Add Custom
+- Capture a current arrangement with Add Current
 - Warn when captured or imported layouts contain overlapping windows
 - Reject malformed, out-of-range, and duplicate layout entries
 - Custom gap and each margin

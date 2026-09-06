@@ -18,7 +18,6 @@ export interface LayoutWindow {
 
 export interface WindowLayout {
   id: string;
-  name: string;
   windows: LayoutWindow[];
 }
 

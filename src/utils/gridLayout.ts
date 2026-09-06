@@ -10,7 +10,7 @@ import type {
 export const GRID_LIMITS = {
   gap: { min: 0, max: 64 },
   margin: { min: 0, max: 240 },
-  layouts: { min: 1, max: 20 },
+  layouts: { min: 0, max: 20 },
   windowsPerLayout: { min: 1, max: 36 },
   totalWindows: 64,
 } as const;
@@ -207,13 +207,6 @@ export function parseLayoutCollection(value: unknown): WindowLayout[] {
     ids.add(candidate.id);
 
     if (
-      typeof candidate.name !== "string" ||
-      candidate.name.trim().length === 0 ||
-      candidate.name.trim().length > 80
-    ) {
-      throw new Error(`${label}.name must contain 1–80 characters.`);
-    }
-    if (
       !Array.isArray(candidate.windows) ||
       candidate.windows.length < GRID_LIMITS.windowsPerLayout.min ||
       candidate.windows.length > GRID_LIMITS.windowsPerLayout.max
@@ -244,7 +237,6 @@ export function parseLayoutCollection(value: unknown): WindowLayout[] {
 
     return {
       id: candidate.id,
-      name: candidate.name.trim(),
       windows,
     };
   });
@@ -279,7 +271,7 @@ export function normalizeLayoutSettings(value: unknown): LayoutSettings {
     typeof value.selectedLayoutId === "string" &&
     layouts.some((layout) => layout.id === value.selectedLayoutId)
       ? value.selectedLayoutId
-      : layouts[0].id;
+      : (layouts[0]?.id ?? "");
 
   return {
     selectedLayoutId,
@@ -380,7 +372,7 @@ export function calculateLayoutSlots(
 
     if (bounds.width < MIN_WINDOW_WIDTH || bounds.height < MIN_WINDOW_HEIGHT) {
       throw new Error(
-        `${layout.name} window ${index + 1} is too small for the active display, gap, and margins.`
+        `${layout.id} window ${index + 1} is too small for the active display, gap, and margins.`
       );
     }
     return bounds;

@@ -4,7 +4,11 @@ import type {
   WindowBounds,
   WindowLayout,
 } from "./types";
-import { arrangeWindows } from "./utils/arrangeWindows";
+import {
+  arrangeWindows,
+  arrangeWindowsWithActiveSlot,
+  moveActiveWindowToSlot,
+} from "./utils/arrangeWindows";
 import {
   captureLayoutWindows,
   layoutHasOverlaps,
@@ -20,14 +24,37 @@ import { getStorageData, setStorageData } from "./utils/storage";
 const LAYOUT_SETTINGS_KEY = "layoutSettings";
 let arrangementQueue: Promise<void> = Promise.resolve();
 
-function applyLayout(layoutId?: string) {
+function applyLayout(layoutId?: string, preserveWindowSlots = false) {
   const operation = arrangementQueue.then(async () => {
     const savedSettings = await getStorageData<unknown>(
       LAYOUT_SETTINGS_KEY,
       createDefaultLayoutSettings()
     );
     const settings = normalizeLayoutSettings(savedSettings);
-    return arrangeWindows(settings, layoutId);
+    return arrangeWindows(settings, layoutId, preserveWindowSlots);
+  });
+
+  arrangementQueue = operation.then(
+    () => undefined,
+    () => undefined
+  );
+  return operation;
+}
+
+function applyLayoutSlot(
+  layoutId: string,
+  slotIndex: number,
+  moveOnlyCurrent: boolean
+) {
+  const operation = arrangementQueue.then(async () => {
+    const savedSettings = await getStorageData<unknown>(
+      LAYOUT_SETTINGS_KEY,
+      createDefaultLayoutSettings()
+    );
+    const settings = normalizeLayoutSettings(savedSettings);
+    return moveOnlyCurrent
+      ? moveActiveWindowToSlot(settings, layoutId, slotIndex)
+      : arrangeWindowsWithActiveSlot(settings, layoutId, slotIndex);
   });
 
   arrangementQueue = operation.then(
@@ -74,7 +101,6 @@ function captureCurrentLayout() {
     }
     const layout: WindowLayout = {
       id: `custom-${suffix}`,
-      name: `Custom Layout ${suffix}`,
       windows,
     };
     const layouts = parseLayoutCollection([...settings.layouts, layout]);
@@ -121,7 +147,7 @@ chrome.commands.onCommand.addListener(async (command) => {
   if (command !== "apply-layout") return;
 
   try {
-    await applyLayout();
+    await applyLayout(undefined, true);
   } catch (error) {
     console.error("Failed to apply window layout:", error);
   }
@@ -131,8 +157,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   const operation =
     message.action === "arrange-windows"
       ? applyLayout(
-          typeof message.layoutId === "string" ? message.layoutId : undefined
+          typeof message.layoutId === "string" ? message.layoutId : undefined,
+          message.preserveWindowSlots === true
         )
+      : message.action === "arrange-layout-slot" &&
+          typeof message.layoutId === "string" &&
+          typeof message.slotIndex === "number"
+        ? applyLayoutSlot(
+            message.layoutId,
+            message.slotIndex,
+            message.moveOnlyCurrent === true
+          )
       : message.action === "capture-layout"
         ? captureCurrentLayout()
         : undefined;
